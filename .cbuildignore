@@ -1,0 +1,4 @@
+infra/node_modules
+.git
+infra/cdk.out
+infra/dist
