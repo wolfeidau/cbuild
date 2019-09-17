@@ -112,6 +112,10 @@ func (lc *Launcher) GetTaskLogs(gtlp *GetLogsParams) (*GetLogsResult, error) {
 // WaitForTask wait for task to complete
 func (lc *Launcher) WaitForTask(wft *WaitParams) (*WaitResult, error) {
 
+	log.Info().
+		Str("Id", wft.BuildID).
+		Msg("waiting for build to complete")
+
 	params := &codebuild.BatchGetBuildsInput{
 		Ids: []*string{aws.String(wft.BuildID)},
 	}

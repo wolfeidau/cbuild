@@ -1,5 +1,5 @@
 import { Stack, Construct, StackProps } from "@aws-cdk/core"
-import { Project, BuildSpec, LinuxBuildImage } from '@aws-cdk/aws-codebuild'
+import { Project, BuildSpec, LinuxBuildImage, Cache, LocalCacheMode } from '@aws-cdk/aws-codebuild'
 import { Bucket, BucketEncryption } from '@aws-cdk/aws-s3'
 import { ManagedPolicy } from "@aws-cdk/aws-iam";
 
@@ -20,6 +20,7 @@ export class CodeBuilderStack extends Stack {
         privileged: true,
         buildImage: LinuxBuildImage.STANDARD_2_0,
       },
+      cache: Cache.local(LocalCacheMode.DOCKER_LAYER, LocalCacheMode.CUSTOM),
       buildSpec: BuildSpec.fromObject({
         version: '0.2',
         phases: {
@@ -45,6 +46,7 @@ export class CodeBuilderStack extends Stack {
         privileged: true, // required for the docker runtime!!
         buildImage: LinuxBuildImage.STANDARD_2_0,
       },
+      cache: Cache.local(LocalCacheMode.DOCKER_LAYER, LocalCacheMode.CUSTOM),
       // default build spec which provides the docker runtime
       buildSpec: BuildSpec.fromObject({
         version: '0.2',

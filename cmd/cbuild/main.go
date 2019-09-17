@@ -17,12 +17,27 @@ import (
 	"github.com/wolfeidau/cbuild/pkg/buildspec"
 	"github.com/wolfeidau/cbuild/pkg/config"
 	"github.com/wolfeidau/cbuild/pkg/launcher"
+	"gopkg.in/alecthomas/kingpin.v2"
+)
+
+var (
+	verbose = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
+
+	version = "unknown"
 )
 
 func main() {
 
+	kingpin.Version(version)
+	kingpin.Parse()
+
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
-	// zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	if *verbose {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
 
 	log.Info().Msg("building archive")
 
@@ -88,10 +103,12 @@ func main() {
 
 		var nextToken *string
 
-		ch, err := lru.New(256)
+		ch, err := lru.New(1024)
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to create cache")
 		}
+
+		log.Info().Msg("reading logs for build")
 
 		for {
 			select {
@@ -99,7 +116,7 @@ func main() {
 				return
 			default:
 				// Do other stuff
-
+				log.Debug().Msg("GetTaskLogs")
 				logsRes, err := lc.GetTaskLogs(&launcher.GetLogsParams{
 					CloudwatchGroupName:  buildRes.CloudwatchGroupName,
 					CloudwatchStreamName: buildRes.CloudwatchStreamName,
@@ -109,25 +126,29 @@ func main() {
 					log.Fatal().Err(err).Msg("failed to get logs build")
 				}
 
+				log.Debug().Str("nextToken", aws.StringValue(logsRes.NextToken)).Msg("GetTaskLogs")
+
 				if aws.StringValue(nextToken) == aws.StringValue(logsRes.NextToken) {
+					log.Debug().Msg("Tokens Match")
 					time.Sleep(2 * time.Second)
 					continue
 				}
+
+				log.Debug().Int("count", len(logsRes.LogLines)).Msg("loglines returned")
 
 				for _, ll := range logsRes.LogLines {
 
 					msg := fmt.Sprintf("ts=%s msg=%s", ll.Timestamp.Format(time.RFC3339), ll.Message)
 
 					if ok, _ := ch.ContainsOrAdd(msg, "test"); ok {
-						time.Sleep(2 * time.Second)
+						log.Debug().Msg("skip")
 						continue
 					}
 					fmt.Print(msg)
 				}
 
-				if len(logsRes.LogLines) == 0 {
-					time.Sleep(1 * time.Second)
-				}
+				log.Debug().Msg("waiting")
+				time.Sleep(5 * time.Second)
 
 			}
 		}
@@ -138,7 +159,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to launch run")
 	}
 
-	log.Info().Str("BuildID", waitRes.BuildID).Msg("finshed build")
+	log.Info().Str("BuildID", waitRes.BuildID).Msg("finished build")
 
 	quit <- true
 }
