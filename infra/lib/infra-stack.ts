@@ -1,5 +1,5 @@
 import { Stack, Construct, StackProps } from "@aws-cdk/core"
-import { Project, BuildSpec, LinuxBuildImage, Cache, LocalCacheMode } from '@aws-cdk/aws-codebuild'
+import { Project, BuildSpec, LinuxBuildImage, Cache, LocalCacheMode, Artifacts } from '@aws-cdk/aws-codebuild'
 import { Bucket, BucketEncryption } from '@aws-cdk/aws-s3'
 import { ManagedPolicy } from "@aws-cdk/aws-iam";
 
@@ -15,12 +15,17 @@ export class CodeBuilderStack extends Stack {
       encryption: BucketEncryption.KMS_MANAGED,
     });
 
+    const cacheBucket = new Bucket(this, 'Cache', {
+      encryption: BucketEncryption.KMS_MANAGED,
+    });
+
     const buildProject = new Project(this, 'Build', {
       environment: {
         privileged: true,
         buildImage: LinuxBuildImage.STANDARD_2_0,
       },
-      cache: Cache.local(LocalCacheMode.DOCKER_LAYER, LocalCacheMode.CUSTOM),
+      cache: Cache.bucket(cacheBucket, {prefix: "builds/cache"}),
+      artifacts: Artifacts.s3({name: "builds", bucket: artifactBucket}),
       buildSpec: BuildSpec.fromObject({
         version: '0.2',
         phases: {
@@ -38,7 +43,6 @@ export class CodeBuilderStack extends Stack {
       })
     })
 
-    artifactBucket.grantReadWrite(buildProject.role!);
     sourceBucket.grantRead(buildProject.role!);
 
     const deployProject = new Project(this, 'Deploy', {
@@ -46,7 +50,8 @@ export class CodeBuilderStack extends Stack {
         privileged: true, // required for the docker runtime!!
         buildImage: LinuxBuildImage.STANDARD_2_0,
       },
-      cache: Cache.local(LocalCacheMode.DOCKER_LAYER, LocalCacheMode.CUSTOM),
+      cache: Cache.bucket(cacheBucket, {prefix: "deploys/cache"}),
+      artifacts: Artifacts.s3({name: "deploys", bucket: artifactBucket}),
       // default build spec which provides the docker runtime
       buildSpec: BuildSpec.fromObject({
         version: '0.2',
@@ -65,7 +70,6 @@ export class CodeBuilderStack extends Stack {
       })
     })
 
-    artifactBucket.grantReadWrite(deployProject.role!);
     sourceBucket.grantRead(deployProject.role!);
 
     deployProject.role!.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName("AdministratorAccess"))
