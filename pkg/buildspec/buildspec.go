@@ -9,19 +9,24 @@ import (
 )
 
 // LoadSpec load the spec file if it is exists
-func LoadSpec() (*string, error) {
-	if fileutil.Exists("buildspec.yml") {
-		data, err := ioutil.ReadFile("buildspec.yml")
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to load buildspec file")
-		}
+func LoadSpec(specPath string) (*string, error) {
 
-		str := string(data)
+	log.Info().Str("specPath", specPath).Msg("loading buildspec")
 
-		log.Debug().Str("data", str).Msg("loaded spec")
-
-		return &str, nil
+	if !fileutil.Exists(specPath) {
+		log.Warn().Str("specPath", specPath).Msg("buildspec.yml not found.")
+		return nil, nil
 	}
 
-	return nil, nil
+	data, err := ioutil.ReadFile(specPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load buildspec file")
+	}
+
+	str := string(data)
+
+	log.Debug().Str("data", str).Msg("loaded spec")
+
+	return &str, nil
+
 }
