@@ -2,6 +2,7 @@ package archive
 
 import (
 	"archive/zip"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -16,7 +17,9 @@ import (
 const DefaultIgnoreFileName = ".cbuildignore"
 
 // Build build the archive file while ignoring if required.
-func Build(ignoreFile string) (*os.File, error) {
+func Build(ignoreFile string) (int, *os.File, error) {
+
+	log.Debug().Msg("building archive")
 
 	if ignoreFile == "" {
 		ignoreFile = DefaultIgnoreFileName
@@ -31,7 +34,7 @@ func Build(ignoreFile string) (*os.File, error) {
 	if fileutil.Exists(ignoreFile) {
 		rules, err = ignore.ParseFile(ignoreFile)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to ignore config")
+			return 0, nil, errors.Wrap(err, "failed to ignore config")
 		}
 	}
 
@@ -43,6 +46,8 @@ func Build(ignoreFile string) (*os.File, error) {
 	log.Info().Str("name", tmpfile.Name()).Msg("created temp file")
 
 	w := zip.NewWriter(tmpfile)
+	total := 0
+	written := 0
 
 	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -72,23 +77,27 @@ func Build(ignoreFile string) (*os.File, error) {
 				return err
 			}
 
-			_, err = f.Write(data)
+			written, err = f.Write(data)
 			if err != nil {
 				return err
 			}
 
+			total += written
 		}
 
 		return nil
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to walking path")
+		return 0, nil, errors.Wrap(err, "failed to walking path")
 	}
 
 	err = w.Close()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to close buffer")
+		return 0, nil, errors.Wrap(err, "failed to close buffer")
 	}
 
-	return tmpfile, nil
+	// reset the archive stream
+	tmpfile.Seek(0, io.SeekStart)
+
+	return total, tmpfile, nil
 }

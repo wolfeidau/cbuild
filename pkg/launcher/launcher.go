@@ -10,17 +10,18 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/codebuild"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/wolfeidau/cbuild/pkg/config"
 	"github.com/wolfeidau/cbuild/pkg/cwlogs"
 )
 
 // RunBuildParams used to launch Codebuild container based tasks
 type RunBuildParams struct {
-	ProjectName string
-	SourceID    string
-	Buildspec   *string // optional buildspec
+	ProjectName  string
+	SourceID     string
+	SourceBucket string
+	Buildspec    *string // optional buildspec
 }
 
 type RunBuildResult struct {
@@ -53,29 +54,28 @@ type GetLogsResult struct {
 type Launcher struct {
 	cbsvc        *codebuild.CodeBuild
 	cwlogsReader cwlogs.LogsReader
-	cfg          *config.Config
 }
 
 // New create a new launcher
-func New(sess *session.Session, cfg *config.Config) *Launcher {
-	return &Launcher{cbsvc: codebuild.New(sess), cfg: cfg, cwlogsReader: cwlogs.NewCloudwatchLogsReader()}
+func New(sess *session.Session) *Launcher {
+	return &Launcher{cbsvc: codebuild.New(sess), cwlogsReader: cwlogs.NewCloudwatchLogsReader()}
 }
 
 // RunBuild run a codebuild job
 func (lc *Launcher) RunBuild(rb *RunBuildParams) (*RunBuildResult, error) {
 
 	res, err := lc.cbsvc.StartBuild(&codebuild.StartBuildInput{
-		ProjectName:            aws.String(lc.cfg.BuildProjectArn),
+		ProjectName:            aws.String(rb.ProjectName),
 		SourceTypeOverride:     aws.String(codebuild.SourceTypeS3),
 		BuildspecOverride:      rb.Buildspec,
-		SourceLocationOverride: aws.String(fmt.Sprintf("%s/%s", lc.cfg.SourceBucket, rb.SourceID+".zip")),
+		SourceLocationOverride: aws.String(fmt.Sprintf("%s/%s", rb.SourceBucket, rb.SourceID+".zip")),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start build")
 	}
 
 	buildID := aws.StringValue(res.Build.Id)
-	logGroupName := fmt.Sprintf("/aws/codebuild/%s", lc.cfg.BuildProjectArn)
+	logGroupName := fmt.Sprintf("/aws/codebuild/%s", rb.ProjectName)
 	logStreamName := strings.Split(buildID, ":")[1]
 
 	log.Info().
@@ -89,6 +89,62 @@ func (lc *Launcher) RunBuild(rb *RunBuildParams) (*RunBuildResult, error) {
 		CloudwatchGroupName:  logGroupName,
 		CloudwatchStreamName: logStreamName,
 	}, nil
+}
+
+// ReadUntilClose read logs until the supplied channel returns a value
+func (lc *Launcher) ReadUntilClose(gtlp *GetLogsParams, quit chan bool) error {
+	var nextToken *string
+
+	ch, err := lru.New(1024)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to create cache")
+	}
+
+	log.Info().Msg("reading logs for build")
+
+	for {
+		select {
+		case <-quit:
+			return nil
+		default:
+			// Do other stuff
+			log.Debug().Msg("GetTaskLogs")
+			logsRes, err := lc.GetTaskLogs(&GetLogsParams{
+				CloudwatchGroupName:  gtlp.CloudwatchGroupName,
+				CloudwatchStreamName: gtlp.CloudwatchStreamName,
+				NextToken:            nextToken,
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed to get logs build")
+			}
+
+			log.Debug().Str("nextToken", aws.StringValue(logsRes.NextToken)).Msg("GetTaskLogs")
+
+			if aws.StringValue(nextToken) == aws.StringValue(logsRes.NextToken) {
+				log.Debug().Msg("Tokens Match")
+				time.Sleep(2 * time.Second)
+				continue
+			}
+
+			log.Debug().Int("count", len(logsRes.LogLines)).Msg("loglines returned")
+
+			for _, ll := range logsRes.LogLines {
+
+				msg := fmt.Sprintf("ts=%s msg=%s", ll.Timestamp.Format(time.RFC3339), ll.Message)
+
+				if ok, _ := ch.ContainsOrAdd(msg, "test"); ok {
+					log.Debug().Msg("skip")
+					continue
+				}
+				fmt.Print(msg)
+			}
+
+			log.Debug().Msg("waiting")
+			time.Sleep(5 * time.Second)
+
+		}
+	}
+
 }
 
 // GetTaskLogs get task logs
