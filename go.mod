@@ -10,7 +10,6 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/helm/helm v2.14.3+incompatible
-	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/rs/zerolog v1.15.0
