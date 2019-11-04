@@ -4,4 +4,8 @@ import { App } from "@aws-cdk/core"
 import { CodeBuilderStack } from './lib/infra-stack';
 
 const app = new App();
-new CodeBuilderStack(app, 'BuilderStack-dev-master');
+
+const branch = app.node.tryGetContext("branch");
+const stage = app.node.tryGetContext("stage");
+
+new CodeBuilderStack(app, `BuilderStack-${stage}-${branch}`);

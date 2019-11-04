@@ -21,7 +21,7 @@ var (
 	verbose          = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
 	codebuildProject = kingpin.Flag("project", "Codebuild Project to use for builds.").Envar("BUILD_PROJECT_NAME").Required().String()
 	sourceBucket     = kingpin.Flag("source-bucket", "Source bucket used to stage sources.").Envar("SOURCE_BUCKET").Required().String()
-	specFile         = kingpin.Flag("spec", "Path to buildspec.yml to use when running build.").Envar("BUILD_SPEC_PATH").Default("./buildspec.yml").String()
+	specFile         = kingpin.Flag("spec", "Path to buildspec YAML to use when running build.").Envar("BUILD_SPEC_PATH").Default("./buildspec.yaml").String()
 
 	version = "unknown"
 )

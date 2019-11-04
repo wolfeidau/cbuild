@@ -1,4 +1,4 @@
-import { Stack, Construct, StackProps } from "@aws-cdk/core"
+import { Stack, Construct, StackProps, CfnOutput } from "@aws-cdk/core"
 import { Project, BuildSpec, LinuxBuildImage, Cache, LocalCacheMode, Artifacts } from '@aws-cdk/aws-codebuild'
 import { Bucket, BucketEncryption } from '@aws-cdk/aws-s3'
 import { ManagedPolicy } from "@aws-cdk/aws-iam";
@@ -73,6 +73,11 @@ export class CodeBuilderStack extends Stack {
     sourceBucket.grantRead(deployProject.role!);
 
     deployProject.role!.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName("AdministratorAccess"))
+
+    new CfnOutput(this, 'sourceBucket', { value: sourceBucket.bucketName });
+    new CfnOutput(this, 'artifactBucket', { value: artifactBucket.bucketName });
+    new CfnOutput(this, 'buildProject', { value: buildProject.projectName });
+    new CfnOutput(this, 'deployProject', { value: deployProject.projectName });
 
   }
 }
