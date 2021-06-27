@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: "AWS::Serverless-2016-10-31"
+
+Description: "cbuild: Used to enable deployments with CodeBuild"
+
+Parameters:
+  AppName:
+    Description: Name of application.
+    Type: String
+    AllowedPattern: "^[a-zA-Z0-9]*$"
+
+  Stage:
+    Description: The stage where the application is running in, e.g., dev, prod.
+    Type: String
+    Default: dev
+    AllowedPattern: "^[a-z0-9]*$"
+
+  Branch:
+    Description: The branch this application was deployed using.
+    Type: String
+    Default: master
+    AllowedPattern: "^[a-z0-9]*$"
+
+Resources:
+
+  CodeBuildBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${Stage}-${Branch}-${AppName}-codebuild-data"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+        - Id: DeleteEverything
+          Prefix: ''
+          Status: Enabled
+          ExpirationInDays: 14
+
+  CodeBuildBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CodeBuildBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AllowSSLRequestsOnly
+            Effect: Deny
+            Principal: "*"
+            Action:
+              - s3:*
+            Resource:
+              - !Sub "arn:aws:s3:::${CodeBuildBucket}/*"
+              - !Sub "arn:aws:s3:::${CodeBuildBucket}"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+
+  CodeBuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/codebuild/${Stage}-${Branch}-${AppName}"
+      RetentionInDays: 30
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Creating service role in IAM for AWS CodeBuild
+      Policies:
+        - PolicyName: !Sub "${Stage}-${Branch}-${AppName}-CodeBuildPolicy"
+          PolicyDocument:
+            Statement:
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Effect: Allow
+                Resource: !Sub "arn:aws:logs:*:*:log-group:/aws/codebuild/${Stage}-${Branch}-${AppName}:log-stream:*"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:ListBucketMultipartUploads
+                  - s3:PutEncryptionConfiguration
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${Stage}-${Branch}-${AppName}-codebuild-data
+                  - !Sub arn:${AWS::Partition}:s3:::${Stage}-${Branch}-${AppName}-codebuild-data/*
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+      Path: /
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub "${Stage}-${Branch}-${AppName}"
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        Type: LINUX_CONTAINER
+        PrivilegedMode: true # Docker in Docker support
+      ServiceRole: !Ref 'CodeBuildRole'
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Ref CodeBuildLogGroup
+          Status: ENABLED
+          StreamName: "build"
+        S3Logs:
+          Location: !Sub "${CodeBuildBucket}/logs"
+          Status: ENABLED
+      Cache:
+        Type: S3
+        Location: !Sub "${CodeBuildBucket}/cache"
+      Artifacts:
+        Type: S3
+        Location: !Sub "${CodeBuildBucket}"
+        Path: /artifacts
+      Source:
+        Type: S3
+        Location: !Sub "${CodeBuildBucket}/source"
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                golang: latest
+                nodejs: latest
+                python: latest
+            build:
+              commands:
+                - 'make ci'
+
+Outputs:
+  CodeBuildBucket:
+    Value: !Ref CodeBuildBucket
+  CodeBuildProject:
+    Value: !Ref CodeBuildProject

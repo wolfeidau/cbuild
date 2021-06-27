@@ -1,7 +1,0 @@
-{
-  "context": {
-    "branch": "master",
-    "stage": "dev"
-  },
-  "app": "npx ts-node infra.ts"
-}

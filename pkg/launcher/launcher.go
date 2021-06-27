@@ -18,10 +18,10 @@ import (
 
 // RunBuildParams used to launch Codebuild container based tasks
 type RunBuildParams struct {
-	ProjectName  string
-	SourceID     string
-	SourceBucket string
-	Buildspec    *string // optional buildspec
+	ProjectName   string
+	SourceArchive string
+	SourceBucket  string
+	Buildspec     *string // optional buildspec
 }
 
 type RunBuildResult struct {
@@ -68,7 +68,7 @@ func (lc *Launcher) RunBuild(rb *RunBuildParams) (*RunBuildResult, error) {
 		ProjectName:            aws.String(rb.ProjectName),
 		SourceTypeOverride:     aws.String(codebuild.SourceTypeS3),
 		BuildspecOverride:      rb.Buildspec,
-		SourceLocationOverride: aws.String(fmt.Sprintf("%s/%s", rb.SourceBucket, rb.SourceID+".zip")),
+		SourceLocationOverride: aws.String(fmt.Sprintf("%s/%s", rb.SourceBucket, rb.SourceArchive)),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start build")

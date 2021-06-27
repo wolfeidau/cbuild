@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -21,6 +22,7 @@ var (
 	verbose          = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
 	codebuildProject = kingpin.Flag("project", "Codebuild Project to use for builds.").Envar("BUILD_PROJECT_NAME").Required().String()
 	sourceBucket     = kingpin.Flag("source-bucket", "Source bucket used to stage sources.").Envar("SOURCE_BUCKET").Required().String()
+	sourcePrefix     = kingpin.Flag("source-prefix", "Source bucket used to stage sources.").Envar("SOURCE_PREFIX").Default("source").String()
 	specFile         = kingpin.Flag("spec", "Path to buildspec YAML to use when running build.").Envar("BUILD_SPEC_PATH").Default("./buildspec.yaml").String()
 
 	version = "unknown"
@@ -56,10 +58,12 @@ func main() {
 
 	log.Info().Str("sourceBucket", *sourceBucket).Str("size", humanize.IBytes(uint64(archSize))).Msg("upload archive")
 
+	sourceArchivePath := path.Join(*sourcePrefix, sourceID.String()+".zip")
+
 	// Upload the file to S3.
 	result, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket: sourceBucket,
-		Key:    aws.String(sourceID.String() + ".zip"),
+		Key:    aws.String(sourceArchivePath),
 		Body:   arch,
 	})
 	if err != nil {
@@ -83,10 +87,10 @@ func main() {
 	lc := launcher.New(sess)
 
 	buildRes, err := lc.RunBuild(&launcher.RunBuildParams{
-		ProjectName:  *codebuildProject,
-		SourceID:     sourceID.String(),
-		SourceBucket: *sourceBucket,
-		Buildspec:    spec,
+		ProjectName:   *codebuildProject,
+		SourceArchive: sourceArchivePath,
+		SourceBucket:  *sourceBucket,
+		Buildspec:     spec,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to launch build")

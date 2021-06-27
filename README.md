@@ -4,7 +4,7 @@ This is a command line tool which enables you to upload and build in the AWS usi
 
 # Deployment
 
-In the `infra` folder is an [AWS CDK](https://aws.amazon.com/cdk/) which deploys a couple of CodeBuild projects, one for building that has minimal access to AWS, and one for deploying which has admin privileges.
+In the `sam` folder is an [AWS SAM](https://aws.amazon.com/serverless/sam/) template which deploys a CodeBuild project for building that has minimal access to AWS.
 
 # Configuration
 
@@ -19,7 +19,6 @@ export AWS_REGION=ap-southeast-2
 export SOURCE_BUCKET="builderstack-dev-master-sourcesxxxx"
 export ARTIFACT_BUCKET="builderstack-dev-master-artifactsxxxxx"
 export BUILD_PROJECT_ARN="Buildxxxx"
-export DEPLOY_PROJECT_ARN="Deployxxxx"
 ```
 
 # Status
