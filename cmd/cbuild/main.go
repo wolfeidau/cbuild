@@ -1,6 +1,7 @@
 package main
 
 import (
+	cryptorand "crypto/rand"
 	"os"
 	"path"
 	"time"
@@ -9,9 +10,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/dustin/go-humanize"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	uuid "github.com/satori/go.uuid"
 	"github.com/wolfeidau/cbuild/pkg/archive"
 	"github.com/wolfeidau/cbuild/pkg/buildspec"
 	"github.com/wolfeidau/cbuild/pkg/launcher"
@@ -48,7 +49,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to build archive")
 	}
 
-	sourceID := uuid.NewV4()
+	sourceID := mustGenerate()
 
 	sess := session.Must(session.NewSession())
 
@@ -58,7 +59,7 @@ func main() {
 
 	log.Info().Str("sourceBucket", *sourceBucket).Str("size", humanize.IBytes(uint64(archSize))).Msg("upload archive")
 
-	sourceArchivePath := path.Join(*sourcePrefix, sourceID.String()+".zip")
+	sourceArchivePath := path.Join(*sourcePrefix, *codebuildProject, sourceID.String()+".zip")
 
 	// Upload the file to S3.
 	result, err := uploader.Upload(&s3manager.UploadInput{
@@ -69,6 +70,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to upload source archive")
 	}
+
 	log.Info().Str("location", result.Location).Msg("uploaded to s3")
 
 	log.Debug().Str("filename", arch.Name()).Msg("cleanup temp file")
@@ -111,4 +113,8 @@ func main() {
 	log.Info().Str("BuildID", waitRes.BuildID).Msg("finished build")
 
 	quitCh <- true
+}
+
+func mustGenerate() ulid.ULID {
+	return ulid.MustNew(ulid.Timestamp(time.Now()), cryptorand.Reader)
 }

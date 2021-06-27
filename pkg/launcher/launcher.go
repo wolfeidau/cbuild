@@ -75,8 +75,8 @@ func (lc *Launcher) RunBuild(rb *RunBuildParams) (*RunBuildResult, error) {
 	}
 
 	buildID := aws.StringValue(res.Build.Id)
-	logGroupName := fmt.Sprintf("/aws/codebuild/%s", rb.ProjectName)
-	logStreamName := strings.Split(buildID, ":")[1]
+	logGroupName := aws.StringValue(res.Build.Logs.CloudWatchLogs.GroupName)
+	logStreamName := fmt.Sprintf("%s/%s", aws.StringValue(res.Build.Logs.CloudWatchLogs.StreamName), strings.Split(buildID, ":")[1])
 
 	log.Info().
 		Str("Id", buildID).

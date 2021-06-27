@@ -11,9 +11,9 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/helm/helm v2.17.0+incompatible
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/oklog/ulid/v2 v2.0.2
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.23.0
-	github.com/satori/go.uuid v1.2.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 )
