@@ -13,7 +13,7 @@ require (
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/oklog/ulid/v2 v2.0.2
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.26.0
+	github.com/rs/zerolog v1.26.1
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 )
