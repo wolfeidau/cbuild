@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
 	github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 // indirect
-	github.com/aws/aws-sdk-go v1.42.23
+	github.com/aws/aws-sdk-go v1.44.19
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/hashicorp/golang-lru v0.5.4
