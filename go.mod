@@ -7,7 +7,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 // indirect
 	github.com/aws/aws-sdk-go v1.42.23
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dustin/go-humanize v1.0.0
+	github.com/dustin/go-humanize v1.0.1
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/helm/helm v2.17.0+incompatible
 	github.com/kr/pretty v0.1.0 // indirect
